@@ -1167,6 +1167,26 @@ button { font: inherit; cursor: pointer; border: none; background: none; color: 
 .pizza-size-name { font-weight: 700; color: var(--text); }
 .pizza-size-desc { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
 .pizza-size-price { font-weight: 800; color: #D52B1E; font-size: 18px; flex-shrink: 0; margin-left: 12px; }
+.pizza-size-btn.size-esgotado {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--surface);
+  border-color: var(--border);
+}
+.pizza-size-btn.size-esgotado .pizza-size-name { text-decoration: line-through; }
+.pizza-size-btn.size-esgotado:active {
+  border-color: var(--border);
+  background: var(--surface);
+}
+.size-esgotado-tag {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  margin-left: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 .pizza-modal-confirm {
   width: 100%;
   padding: 18px;
@@ -3541,11 +3561,23 @@ document.addEventListener('DOMContentLoaded', function () {
       leiteSection.style.display = isSuco ? 'block' : 'none';
 
       var sizes = JSON.parse(sizesJson);
+      var sizeMap = (window.AgapeSizeAvailability || {})[name] || {};
       sizeOptions.innerHTML = '';
       sizes.forEach(function (s) {
+        var esgotado = sizeMap[String(s.label).trim().toLowerCase()] === false;
         var btn = document.createElement('button');
-        btn.className = 'pizza-size-btn';
+        btn.className = 'pizza-size-btn' + (esgotado ? ' size-esgotado' : '');
         btn.type = 'button';
+
+        if (esgotado) {
+          btn.disabled = true;
+          btn.setAttribute('aria-disabled', 'true');
+          btn.innerHTML =
+            '<div><div class="pizza-size-name">' + s.label + '</div></div>' +
+            '<div class="size-esgotado-tag">Esgotado</div>';
+          sizeOptions.appendChild(btn);
+          return;
+        }
         btn.innerHTML =
           '<div><div class="pizza-size-name">' + s.label + '</div></div>' +
           '<div class="pizza-size-price">R$ ' + s.price.toFixed(2).replace('.', ',') + '</div>';
@@ -3619,13 +3651,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const rows = JSON.parse(match[1]).table.rows;
       const availability = {};
+      const sizeAvailability = {};
 
       rows.forEach(function (row) {
         if (!row.c || !row.c[0] || !row.c[0].v) return;
         const name = String(row.c[0].v).trim();
         const val  = row.c[1] && row.c[1].v ? String(row.c[1].v).trim().toUpperCase() : 'SIM';
-        availability[name] = (val !== 'NÃO' && val !== 'NAO');
+        const disponivel = (val !== 'NÃO' && val !== 'NAO');
+
+        const sep = name.indexOf('>');
+        if (sep > -1) {
+          const produto = name.slice(0, sep).trim();
+          const tamanho = name.slice(sep + 1).trim();
+          if (produto && tamanho) {
+            if (!sizeAvailability[produto]) sizeAvailability[produto] = {};
+            sizeAvailability[produto][tamanho.toLowerCase()] = disponivel;
+          }
+          return;
+        }
+
+        availability[name] = disponivel;
       });
+
+      window.AgapeSizeAvailability = sizeAvailability;
 
       document.querySelectorAll('.menu-item').forEach(function (item) {
         const btn = item.querySelector('.menu-item-add');
