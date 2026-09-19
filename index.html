@@ -3653,24 +3653,31 @@ document.addEventListener('DOMContentLoaded', function () {
       const availability = {};
       const sizeAvailability = {};
 
-      rows.forEach(function (row) {
+      const cabecalho = rows[0] && rows[0].c ? rows[0].c : [];
+      const rotulos = [];
+      for (let i = 2; i < cabecalho.length; i++) {
+        rotulos[i] = cabecalho[i] && cabecalho[i].v
+          ? String(cabecalho[i].v).trim().toLowerCase()
+          : null;
+      }
+
+      rows.forEach(function (row, idx) {
+        if (idx === 0) return;
         if (!row.c || !row.c[0] || !row.c[0].v) return;
         const name = String(row.c[0].v).trim();
         const val  = row.c[1] && row.c[1].v ? String(row.c[1].v).trim().toUpperCase() : 'SIM';
-        const disponivel = (val !== 'NÃO' && val !== 'NAO');
+        availability[name] = (val !== 'NÃO' && val !== 'NAO');
 
-        const sep = name.indexOf('>');
-        if (sep > -1) {
-          const produto = name.slice(0, sep).trim();
-          const tamanho = name.slice(sep + 1).trim();
-          if (produto && tamanho) {
-            if (!sizeAvailability[produto]) sizeAvailability[produto] = {};
-            sizeAvailability[produto][tamanho.toLowerCase()] = disponivel;
-          }
-          return;
+        for (let i = 2; i < row.c.length; i++) {
+          const rotulo = rotulos[i];
+          if (!rotulo) continue;
+          const cel = row.c[i];
+          if (!cel || cel.v === null || cel.v === undefined) continue;
+          const v = String(cel.v).trim().toUpperCase();
+          if (!v) continue;
+          if (!sizeAvailability[name]) sizeAvailability[name] = {};
+          sizeAvailability[name][rotulo] = (v !== 'NÃO' && v !== 'NAO');
         }
-
-        availability[name] = disponivel;
       });
 
       window.AgapeSizeAvailability = sizeAvailability;
